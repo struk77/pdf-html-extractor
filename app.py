@@ -32,6 +32,14 @@ def try_decoding(data):
     return None, "Unable to decode with common encodings."
 
 
+# Function to handle the download and deletion of the PDF file
+def download_and_delete_pdf(file_path):
+    with open(file_path, "rb") as f:
+        pdf_data = f.read()
+    os.remove(file_path)
+    return pdf_data
+
+
 # Extract the first HTML attachment and return its content
 def extract_html_content(file_path, password=None):
     doc = fitz.open(file_path)
@@ -55,7 +63,7 @@ def extract_html_content(file_path, password=None):
         return content, None
 
     doc.close()
-    return None, "No HTML attachment found!"
+    return None, "No HTML or PDF attachment found!"
 
 
 # Route for uploading files
@@ -80,6 +88,10 @@ def upload_file():
 
             # Extract HTML content from the PDF
             html_content, error = extract_html_content(filepath, password)
+
+            if html_content.endswith(".pdf"):
+                pdf_data = download_and_delete_pdf(html_content)
+                return pdf_data
 
             # Delete the uploaded PDF immediately
             os.remove(filepath)
