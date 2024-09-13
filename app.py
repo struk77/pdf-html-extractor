@@ -1,5 +1,5 @@
 import tempfile
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, send_file, after_this_request
 from werkzeug.utils import secure_filename
 import os
 import fitz  # PyMuPDF
@@ -90,8 +90,21 @@ def upload_file():
             html_content, error = extract_html_content(filepath, password)
 
             if html_content.endswith(".pdf"):
-                pdf_data = download_and_delete_pdf(html_content)
-                return pdf_data
+                pdf_path = html_content
+
+                @after_this_request
+                def remove_file(response):
+                    try:
+                        os.remove(pdf_path)
+                    except Exception as e:
+                        print(f"Error deleting file: {e}")
+                    return response
+
+                return send_file(
+                    pdf_path,
+                    as_attachment=True,
+                    attachment_filename="downloaded-document.pdf",
+                )
 
             # Delete the uploaded PDF immediately
             os.remove(filepath)
