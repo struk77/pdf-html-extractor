@@ -1,4 +1,4 @@
-import tempfile
+# import tempfile
 from flask import Flask, request, render_template, send_file, after_this_request
 from werkzeug.utils import secure_filename
 import os
@@ -41,7 +41,7 @@ def download_and_delete_pdf(file_path):
 
 
 # Extract the first HTML attachment and return its content
-def extract_html_content(file_path, password=None):
+def extract_content(file_path, password=None):
     doc = fitz.open(file_path)
     if doc.is_encrypted:
         if not password or not doc.authenticate(password):
@@ -51,16 +51,16 @@ def extract_html_content(file_path, password=None):
         attachment_data = doc.embfile_get(i)
 
         if attachment_data[:4] == b"%PDF":
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-            temp_file.write(attachment_data)
-            temp_file.close()
-            return temp_file.name, None
+            # temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+            # temp_file.write(attachment_data)
+            # temp_file.close()
+            return attachment_data, "pdf", None
 
         # Try to decode the attachment using common encodings
         content, error = try_decoding(attachment_data)
         if error:
-            return None, error
-        return content, None
+            return None, None, error
+        return content, "html", None
 
     doc.close()
     return None, "No HTML or PDF attachment found!"
@@ -87,23 +87,13 @@ def upload_file():
             file.save(filepath)
 
             # Extract HTML content from the PDF
-            html_content, error = extract_html_content(filepath, password)
+            content, content_type, error = extract_content(filepath, password)
 
-            if html_content.endswith(".pdf"):
-                pdf_path = html_content
-
-                @after_this_request
-                def remove_file(response):
-                    try:
-                        os.remove(pdf_path)
-                    except Exception as e:
-                        print(f"Error deleting file: {e}")
-                    return response
-
+            if content_type == "pdf":
                 return send_file(
-                    pdf_path,
+                    path_or_file=content,
                     as_attachment=True,
-                    attachment_filename="downloaded-document.pdf",
+                    download_name="downloaded-document.pdf",
                 )
 
             # Delete the uploaded PDF immediately
@@ -113,7 +103,7 @@ def upload_file():
                 return error
 
             # Show the HTML content
-            return render_template("view.html", content=html_content)
+            return render_template("view.html", content=content)
 
     return render_template("upload.html")
 
