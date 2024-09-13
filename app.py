@@ -1,4 +1,4 @@
-# import tempfile
+import tempfile
 from flask import Flask, request, render_template, send_file, after_this_request
 from werkzeug.utils import secure_filename
 import os
@@ -51,10 +51,10 @@ def extract_content(file_path, password=None):
         attachment_data = doc.embfile_get(i)
 
         if attachment_data[:4] == b"%PDF":
-            # temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-            # temp_file.write(attachment_data)
-            # temp_file.close()
-            return attachment_data, "pdf", None
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
+            temp_file.write(attachment_data)
+            temp_file.close()
+            return temp_file.name, "pdf", None
 
         # Try to decode the attachment using common encodings
         content, error = try_decoding(attachment_data)
@@ -90,6 +90,12 @@ def upload_file():
             content, content_type, error = extract_content(filepath, password)
 
             if content_type == "pdf":
+
+                @after_this_request
+                def remove_file(response):
+                    os.remove(content)
+                    return response
+
                 return send_file(
                     path_or_file=content,
                     as_attachment=True,
