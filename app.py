@@ -32,14 +32,6 @@ def try_decoding(data):
     return None, "Unable to decode with common encodings."
 
 
-# Function to handle the download and deletion of the PDF file
-def download_and_delete_pdf(file_path):
-    with open(file_path, "rb") as f:
-        pdf_data = f.read()
-    os.remove(file_path)
-    return pdf_data
-
-
 # Extract the first HTML attachment and return its content
 def extract_content(file_path, password=None):
     doc = fitz.open(file_path)
