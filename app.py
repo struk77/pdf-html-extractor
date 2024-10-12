@@ -6,11 +6,16 @@ import fitz  # PyMuPDF
 
 app = Flask(__name__)
 app.config["UPLOAD_FOLDER"] = "uploads"
+app.config["DOWNLOAD_FOLDER"] = "downloads"
 app.config["ALLOWED_EXTENSIONS"] = {"pdf"}
 
 # Create the upload folder if it doesn't exist
 if not os.path.exists(app.config["UPLOAD_FOLDER"]):
     os.makedirs(app.config["UPLOAD_FOLDER"])
+
+# Create the download folder if it doesn't exist
+if not os.path.exists(app.config["DOWNLOAD_FOLDER"]):
+    os.makedirs(app.config["DOWNLOAD_FOLDER"])
 
 
 # Check if file is a PDF
@@ -32,30 +37,40 @@ def try_decoding(data):
     return None, "Unable to decode with common encodings."
 
 
-# Extract the first HTML attachment and return its content
+# Extract all HTML and PDF attachments
 def extract_content(file_path, password=None):
     doc = fitz.open(file_path)
     if doc.is_encrypted:
         if not password or not doc.authenticate(password):
             return None, "Incorrect password!"
 
+    attachments = []
     for i, attachment_name in enumerate(doc.embfile_names()):
         attachment_data = doc.embfile_get(i)
 
         if attachment_data[:4] == b"%PDF":
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-            temp_file.write(attachment_data)
-            temp_file.close()
-            return temp_file.name, "pdf", None
+            # Save the PDF attachment to a temporary file in downloads folder
+            temp_file_path = os.path.join(
+                app.config["DOWNLOAD_FOLDER"], f"attachment_{i}.pdf"
+            )
+            with open(temp_file_path, "wb") as f:
+                f.write(attachment_data)
+            attachments.append((temp_file_path, "pdf", None))
 
-        # Try to decode the attachment using common encodings
-        content, error = try_decoding(attachment_data)
-        if error:
-            return None, None, error
-        return content, "html", None
+        else:
+            # Try to decode the attachment using common encodings
+            content, error = try_decoding(attachment_data)
+            if error:
+                attachments.append((None, None, error))
+            else:
+                attachments.append((content, "html", None))
 
     doc.close()
-    return None, "No HTML or PDF attachment found!"
+
+    if attachments:
+        return attachments
+    else:
+        return None, "No HTML or PDF attachments found!"
 
 
 # Route for uploading files
@@ -78,35 +93,50 @@ def upload_file():
             filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
             file.save(filepath)
 
-            # Extract HTML content from the PDF
-            content, content_type, error = extract_content(filepath, password)
+            # Extract attachments using the provided password
+            attachments = extract_content(filepath, password)
 
-            if content_type == "pdf":
+            if not attachments:
+                return "No attachments found or incorrect password"
 
-                @after_this_request
-                def remove_file(response):
-                    os.remove(content)
-                    return response
-
-                return send_file(
-                    path_or_file=content,
-                    as_attachment=True,
-                    download_name="downloaded-document.pdf",
-                )
+            # Display all attachments
+            response = ""
+            for attachment in attachments:
+                if attachment[1] == "pdf":
+                    response += f'<a href="/download/{os.path.basename(attachment[0])}">Download PDF Attachment {os.path.basename(attachment[0])}</a><br>'
+                elif attachment[1] == "html":
+                    response += f"HTML Attachment content:<br>{attachment[0]}<br>"
+                else:
+                    response += f"Error: {attachment[2]}<br>"
 
             # Delete the uploaded PDF immediately
             os.remove(filepath)
 
-            if error:
-                return error
-
-            # Show the HTML content
-            return render_template("view.html", content=content)
+            return response
 
     return render_template("upload.html")
+
+
+@app.route("/download/<filename>")
+def download_file(filename):
+    filepath = os.path.join(app.config["DOWNLOAD_FOLDER"], filename)
+    if os.path.exists(filepath):
+
+        @after_this_request
+        def delete_file(response):
+            try:
+                os.remove(filepath)  # Delete the file after sending
+            except Exception as e:
+                print(f"Error while deleting file: {e}")
+            return response
+
+        return send_file(filepath, as_attachment=True)
+    else:
+        return "File not found", 404
 
 
 # Main function
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    debug = os.environ.get("DEBUG") == "TRUE"
+    app.run(host="127.0.0.1", port=port, debug=debug)
