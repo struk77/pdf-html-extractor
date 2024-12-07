@@ -1,7 +1,11 @@
-import tempfile
+"""
+This module provides a Flask web application for uploading PDF files,
+extracting HTML and PDF attachments, and downloading the extracted files.
+"""
+
+import os
 from flask import Flask, request, render_template, send_file, after_this_request
 from werkzeug.utils import secure_filename
-import os
 import fitz  # PyMuPDF
 
 app = Flask(__name__)
@@ -20,6 +24,15 @@ if not os.path.exists(app.config["DOWNLOAD_FOLDER"]):
 
 # Check if file is a PDF
 def allowed_file(filename):
+    """
+    Check if the file is a PDF.
+
+    Args:
+        filename (str): The name of the file.
+
+    Returns:
+        bool: True if the file is a PDF, False otherwise.
+    """
     return (
         "." in filename
         and filename.rsplit(".", 1)[1].lower() in app.config["ALLOWED_EXTENSIONS"]
@@ -28,6 +41,15 @@ def allowed_file(filename):
 
 # Try decoding with different encodings
 def try_decoding(data):
+    """
+    Try decoding the data with different encodings.
+
+    Args:
+        data (bytes): The data to decode.
+
+    Returns:
+        tuple: A tuple containing the decoded data and an error message (if any).
+    """
     encodings = ["utf-8", "iso-8859-2", "windows-1250"]
     for encoding in encodings:
         try:
@@ -39,13 +61,23 @@ def try_decoding(data):
 
 # Extract all HTML and PDF attachments
 def extract_content(file_path, password=None):
-    doc = fitz.open(file_path)
-    if doc.is_encrypted:
+    """
+    Extract all HTML and PDF attachments from the given PDF file.
+
+    Args:
+        file_path (str): The path to the PDF file.
+        password (str, optional): The password for the PDF file. Defaults to None.
+
+    Returns:
+        tuple: A tuple containing the extracted attachments and an error message (if any).
+    """
+    doc: fitz.Document = fitz.open(file_path)
+    if doc.needs_pass:
         if not password or not doc.authenticate(password):
             return None, "Incorrect password!"
 
     attachments = []
-    for i, attachment_name in enumerate(doc.embfile_names()):
+    for i, _ in enumerate(doc.embfile_names()):
         attachment_data = doc.embfile_get(i)
 
         if attachment_data[:4] == b"%PDF":
@@ -69,13 +101,18 @@ def extract_content(file_path, password=None):
 
     if attachments:
         return attachments
-    else:
-        return None, "No HTML or PDF attachments found!"
+    return None, "No HTML or PDF attachments found!"
 
 
 # Route for uploading files
 @app.route("/", methods=["GET", "POST"])
 def upload_file():
+    """
+    Route for uploading files.
+
+    Returns:
+        str: The response to the client.
+    """
     if request.method == "POST":
         # Check if the post request has the file part
         if "file" not in request.files:
@@ -103,7 +140,8 @@ def upload_file():
             response = ""
             for attachment in attachments:
                 if attachment[1] == "pdf":
-                    response += f'<a href="/download/{os.path.basename(attachment[0])}">Download PDF Attachment {os.path.basename(attachment[0])}</a><br>'
+                    att = os.path.basename(attachment[0])
+                    response += f'<a href="/download/{att}">Download PDF Attachment {att}</a><br>'
                 elif attachment[1] == "html":
                     response += f"HTML Attachment content:<br>{attachment[0]}<br>"
                 else:
@@ -119,6 +157,15 @@ def upload_file():
 
 @app.route("/download/<filename>")
 def download_file(filename):
+    """
+    Route for downloading files.
+
+    Args:
+        filename (str): The name of the file to download.
+
+    Returns:
+        Response: The response to the client.
+    """
     filepath = os.path.join(app.config["DOWNLOAD_FOLDER"], filename)
     if os.path.exists(filepath):
 
@@ -126,13 +173,12 @@ def download_file(filename):
         def delete_file(response):
             try:
                 os.remove(filepath)  # Delete the file after sending
-            except Exception as e:
+            except OSError as e:
                 print(f"Error while deleting file: {e}")
             return response
 
         return send_file(filepath, as_attachment=True)
-    else:
-        return "File not found", 404
+    return "File not found", 404
 
 
 # Main function
