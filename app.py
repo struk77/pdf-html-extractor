@@ -133,8 +133,8 @@ def upload_file():
             # Extract attachments using the provided password
             attachments = extract_content(filepath, password)
 
-            if not attachments:
-                return "No attachments found or incorrect password"
+            if attachments[0] is None:
+                return attachments[1]
 
             # Display all attachments
             response = ""
