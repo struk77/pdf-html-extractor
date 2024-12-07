@@ -14,6 +14,7 @@ This is a Flask application that extracts and handles PDF and HTML attachments f
 - Python 3.x
 - Flask
 - PyMuPDF (fitz)
+- werkzeug
 
 ## Installation
 
