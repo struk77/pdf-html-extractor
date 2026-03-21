@@ -18,6 +18,8 @@ This is a Flask application that extracts and handles PDF and HTML attachments f
 
 ## Installation
 
+We recommend using [uv](https://docs.astral.sh/uv/) for managing dependencies.
+
 1. Clone the repository:
 
     ```sh
@@ -25,26 +27,41 @@ This is a Flask application that extracts and handles PDF and HTML attachments f
     cd pdf-html-extractor
     ```
 
-2. Create a virtual environment and activate it:
+2. Install the dependencies (this will also create a `.venv` automatically):
 
     ```sh
-    python3.12 -m venv venv
-    source venv/bin/activate
+    uv sync
+    ```
+
+<details>
+<summary>Alternative: using pip</summary>
+
+1. Clone the repository:
+    ```sh
+    git clone https://github.com/struk77/pdf-html-extractor.git
+    cd pdf-html-extractor
+    ```
+
+2. Create a virtual environment and activate it:
+    ```sh
+    python3 -m venv .venv
+    source .venv/bin/activate
     ```
 
 3. Install the required packages:
-
     ```sh
     pip install -r requirements.txt
     ```
+</details>
 
 ## Usage
 
 1. Run the Flask application:
 
     ```sh
-    python app.py
+    uv run python app.py
     ```
+    *(If you used `pip`, activate your virtual environment and run `python app.py` instead).*
 
 2. Open your web browser and go to `http://127.0.0.1:5000`.
 
