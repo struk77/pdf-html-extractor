@@ -1,11 +1,17 @@
+"""
+Tests for the main Flask application.
+"""
+# pylint: disable=redefined-outer-name
+
 import pytest
 from app import app
 
 @pytest.fixture
 def client():
+    """Create a test client for the app."""
     app.config['TESTING'] = True
-    with app.test_client() as client:
-        yield client
+    with app.test_client() as testing_client:
+        yield testing_client
 
 def test_homepage(client):
     """Test that the homepage loads successfully."""
