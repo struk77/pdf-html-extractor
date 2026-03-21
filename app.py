@@ -8,9 +8,11 @@ from flask import Flask, request, render_template, send_file, after_this_request
 from werkzeug.utils import secure_filename
 import fitz  # PyMuPDF
 
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
 app = Flask(__name__)
-app.config["UPLOAD_FOLDER"] = "uploads"
-app.config["DOWNLOAD_FOLDER"] = "downloads"
+app.config["UPLOAD_FOLDER"] = os.path.join(BASE_DIR, "uploads")
+app.config["DOWNLOAD_FOLDER"] = os.path.join(BASE_DIR, "downloads")
 app.config["ALLOWED_EXTENSIONS"] = {"pdf"}
 
 # Create the upload folder if it doesn't exist
