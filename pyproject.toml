@@ -9,3 +9,9 @@ dependencies = [
     "pymupdf>=1.27.2.2",
     "werkzeug>=3.1.6",
 ]
+
+[dependency-groups]
+dev = [
+    "pylint>=4.0.5",
+    "pytest>=9.0.2",
+]
